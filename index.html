@@ -565,7 +565,7 @@ const clampP = ([x, y, d]) => { const r = Math.hypot(x, y), m = 150; return r > 
 
 function buildGeo() {
   geo.replaceChildren();
-  G = { arrows: [], labels: [], axes: [] };
+  G = { arrows: [], labels: [], hits: [], axes: [] };
   geo.style.touchAction = M === 3 ? 'none' : '';
   geo.style.cursor = M === 3 ? 'grab' : '';
   const muted = (e) => { e.style.fill = 'var(--muted)'; return e; };
@@ -593,6 +593,14 @@ function buildGeo() {
     G.labels[i] = el('text', { 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 500 }, geo);
     G.labels[i].style.fill = FC(i); G.labels[i].textContent = i + 1;
   }
+  // wide invisible strokes on top so each arrow is easy to hover
+  for (let i = 0; i < N; i++) {
+    G.hits[i] = el('line', { x1: 0, y1: 0, 'stroke-width': 16, 'stroke-linecap': 'round', 'data-feat': i }, geo);
+    G.hits[i].style.stroke = 'transparent'; G.hits[i].style.pointerEvents = 'stroke'; G.hits[i].style.cursor = 'pointer';
+  }
+  G.coord = el('text', { 'text-anchor': 'start', 'font-size': 12, 'font-weight': 500 }, geo);
+  G.coord.style.paintOrder = 'stroke'; G.coord.style.stroke = 'var(--bg)'; G.coord.style.strokeWidth = 4;
+  G.coord.style.pointerEvents = 'none';
 }
 
 function renderGeo(F) {
@@ -606,10 +614,14 @@ function renderGeo(F) {
       lab.setAttribute('x', x2 + 10 * x2 / r); lab.setAttribute('y', y2 + 10 * y2 / r + 4);
     }
   }
+  const hi = state.sel.t === 'in' ? state.sel.i : -1;
+  G.coord.style.display = 'none';
   for (let i = 0; i < N; i++) {
     const [x, y, d] = clampP(proj(col(i)));
     const a = G.arrows[i];
     a.setAttribute('x2', x); a.setAttribute('y2', y);
+    a.setAttribute('stroke-width', i === hi ? 4.5 : 2.5);
+    G.hits[i].setAttribute('x2', x); G.hits[i].setAttribute('y2', y);
     const shown = norm(i) >= 0.08;
     const depthOp = M === 3 ? 0.55 + 0.45 * (d / Math.max(norm(i), 1e-6) + 1) / 2 : 1;
     a.style.opacity = shown ? depthOp : 0;
@@ -617,6 +629,11 @@ function renderGeo(F) {
     const [lx, ly] = M === 1 ? [x, -12 - 14 * (i % 2)] : [x + 14 * x / r, y + 14 * y / r + 4];
     G.labels[i].setAttribute('x', lx); G.labels[i].setAttribute('y', ly);
     G.labels[i].style.opacity = shown ? depthOp : 0;
+    if (i === hi) { // show this arrow's coordinates: column i of W
+      G.coord.setAttribute('x', -165); G.coord.setAttribute('y', 165); // fixed corner so it never overlaps arrows
+      G.coord.style.fill = FC(i); G.coord.style.display = '';
+      G.coord.textContent = `feature ${i + 1}: W:,${i + 1} = (${col(i).map(v => f(v)).join(', ')})`;
+    }
   }
   const A = analyse(), k = A.rep.length;
   const tips = A.rep.map(i => { const c = col(i); while (c.length < 3) c.push(0); return c; });
@@ -629,6 +646,10 @@ function renderGeo(F) {
   if (regimeEl.innerHTML !== regime) regimeEl.innerHTML = regime;
 }
 
+geo.addEventListener('pointerover', e => {
+  const t = e.target.closest('[data-feat]');
+  if (t && !drag) { state.sel = { t: 'in', i: +t.dataset.feat }; render(); }
+});
 geo.addEventListener('pointerdown', e => {
   if (M !== 3) return;
   drag = { x: e.clientX, y: e.clientY, yaw, pitch }; spin = false;
