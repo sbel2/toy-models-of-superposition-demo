@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Toy Models of Superposition Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #F5F6F8;
+  --surface: #FFFFFF;
+  --ink: #15181E;
+  --muted: #5F6674;
+  --faint: #A4AAB5;
+  --line: #DADEE5;
+  --pos: #2C6BD6;
+  --neg: #D2453A;
+  --f1: #8457E8; --f2: #0F9A76; --f3: #D99312; --f4: #DB4D8A; --f5: #1597BC; --f6: #6E8B1E; --f7: #9A6A3A; --f8: #5D6F94;
+  --serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #101216; --surface: #171A20; --ink: #E7E9EE; --muted: #9BA2AF; --faint: #5C6370; --line: #2A2F38;
+    --pos: #6E9EF0; --neg: #EE7A6D;
+    --f1: #A585F5; --f2: #3CC79E; --f3: #EDB13C; --f4: #F078AA; --f5: #4BBCDD; --f6: #A7C447; --f7: #C99A69; --f8: #94A6CC;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #101216; --surface: #171A20; --ink: #E7E9EE; --muted: #9BA2AF; --faint: #5C6370; --line: #2A2F38;
+  --pos: #6E9EF0; --neg: #EE7A6D;
+  --f1: #A585F5; --f2: #3CC79E; --f3: #EDB13C; --f4: #F078AA; --f5: #4BBCDD; --f6: #A7C447; --f7: #C99A69; --f8: #94A6CC;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.55 var(--sans);
+  padding: 24px 24px 32px;
+}
+.wrap { max-width: 1400px; margin: 0 auto; display: grid; gap: 22px; grid-template-rows: auto 1fr; min-height: calc(100vh - 72px); }
+.mono { font-family: var(--mono); font-size: 0.92em; color: var(--ink); }
+
+.controls { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: start; }
+.ctl { display: grid; gap: 6px; }
+.label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.seg { justify-self: start; display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button {
+  font: 500 13px var(--mono); color: var(--muted); background: none; border: 0;
+  padding: 7px 11px; cursor: pointer; border-right: 1px solid var(--line);
+}
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.seg button:hover:not([aria-pressed="true"]):not(:disabled) { color: var(--ink); }
+.seg button:disabled { opacity: 0.3; cursor: not-allowed; }
+.hint { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.btn {
+  font: 500 13px var(--sans); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px; cursor: pointer;
+}
+.btn:hover { border-color: var(--faint); }
+.node:focus-visible { outline: none; }
+button:focus-visible { outline: 2px solid var(--pos); outline-offset: 2px; }
+.train-row { display: flex; align-items: center; gap: 10px; }
+.refresh {
+  width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--ink); font: 17px/1 var(--sans); cursor: pointer; display: grid; place-items: center; padding: 0;
+}
+.refresh:hover { border-color: var(--faint); }
+.credit { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.credit b { display: block; font: 500 16px/1.3 var(--serif); font-style: italic; color: var(--ink); }
+.credit a { color: inherit; }
+.status { min-width: 17ch; font: 12.5px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.grid {
+  display: grid; gap: 20px 40px; align-items: start; align-content: center;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 0.8fr);
+  grid-template-areas: "net geo wtw" "calc data wtw";
+}
+#net { max-height: calc(100vh - 375px); }
+#wtw { max-height: calc(100vh - 190px); }
+#geo { max-height: calc(100vh - 460px); }
+@media (max-width: 1200px) {
+  .grid { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); grid-template-areas: "net geo" "calc wtw" "data data"; }
+  #net, #geo, #wtw { max-height: none; }
+}
+@media (max-width: 860px) {
+  .grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "net" "calc" "geo" "data" "wtw"; }
+}
+.panel { display: grid; gap: 10px; align-content: start; }
+.panel h2 { font: 600 11px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.panel .sub { margin-top: -4px; }
+.panel p { margin: 0; font-size: 13px; color: var(--muted); max-width: 60ch; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { font-family: var(--mono); }
+.node { cursor: default; outline: none; }
+.node[data-t="in"] { cursor: pointer; }
+
+
+.calc {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 14px 18px; display: grid; gap: 10px;
+}
+.eq { font: 13.5px/1.75 var(--mono); overflow-x: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.eq .z { color: var(--faint); }
+.eq .k { color: var(--muted); }
+.eq b { font-weight: 500; }
+
+.shape { display: flex; align-items: baseline; gap: 10px; min-height: 1.6em; }
+.shape > b { font: 500 21px/1.2 var(--serif); font-style: italic; }
+.regime { margin: 0 0 0 4px; font: 500 13px/1.4 var(--sans); color: var(--muted); min-height: 1.4em; }
+.regime b.none { background: none; color: var(--muted); border: 1px solid var(--line); }
+.regime b { display: inline-block; padding: 2px 9px; margin-right: 6px; border-radius: 999px; background: var(--ink); color: var(--surface); font-weight: 600; letter-spacing: .02em; }
+
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="controls">
+    <div class="ctl">
+      <span class="label" id="n-label">Features n</span>
+      <div class="seg" id="nsel" role="group" aria-labelledby="n-label"></div>
+      <span class="hint">&nbsp;</span>
+    </div>
+    <div class="ctl">
+      <span class="label" id="m-label">Hidden m</span>
+      <div class="seg" id="msel" role="group" aria-labelledby="m-label"></div>
+      <span class="hint">&lt; n</span>
+    </div>
+    <div class="ctl">
+      <span class="label" id="sp-label">Sparsity S</span>
+      <div class="seg" id="sparsity" role="group" aria-labelledby="sp-label"></div>
+      <span class="hint" id="sp-hint"></span>
+    </div>
+    <div class="ctl">
+      <span class="label" id="act-label">Activation</span>
+      <div class="seg" id="act" role="group" aria-labelledby="act-label">
+        <button id="act-relu" aria-pressed="true">ReLU</button>
+        <button id="act-lin" aria-pressed="false">Linear</button>
+      </div>
+      <span class="hint">&nbsp;</span>
+    </div>
+    <div class="ctl">
+      <span class="label">Training</span>
+      <div class="train-row">
+        <button class="refresh" id="retrain" aria-label="Retrain from a new random start" title="Retrain from a new random start">↻</button>
+        <span class="status" id="status"></span>
+      </div>
+      <span class="hint" id="train-hint"></span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <section class="panel" style="grid-area: net">
+      <h2>The network</h2>
+      <p class="sub">Test input: click to toggle. Updates live as W trains.</p>
+      <svg id="net" viewBox="0 0 540 400" role="img"></svg>
+    </section>
+
+
+    <section class="panel" style="grid-area: calc">
+      <h2 id="calc-title">Computation</h2>
+      <div class="calc">
+        <div class="eq" id="eq"></div>
+      </div>
+    </section>
+
+    <section class="panel" style="grid-area: geo">
+      <h2>Hidden space</h2>
+      <div class="shape"><span class="label">Shape</span><b id="shape"></b><span class="regime" id="regime" aria-live="polite"></span></div>
+      <svg id="geo" viewBox="-170 -170 340 340" role="img" aria-label="Feature directions in the hidden space"></svg>
+    </section>
+
+    <section class="panel" style="grid-area: data">
+      <h2 id="data-title">Training data</h2>
+      <p class="sub" id="data-sub"></p>
+      <svg id="tdata" role="img" aria-label="Random examples from the training data"></svg>
+    </section>
+
+    <section class="panel" style="grid-area: wtw">
+      <h2>W, WᵀW and b</h2>
+      <svg id="wtw" role="img" aria-label="Heatmaps of W, W transpose W, and bias"></svg>
+      <div class="credit">
+        <b>Toy Models of Superposition Demo</b>
+        Yan (Stella) Si · BU CDS PhD<br>
+        Based on <a href="https://transformer-circuits.pub/2022/toy_model/index.html" target="_blank" rel="noopener">Elhage et al., 2022</a>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+const DECAY = 0.9, STEPS = 4000, BATCH = 1024;
+const SPARS = [0, 0.5, 0.8, 0.9, 0.95, 0.99];
+const NS_OPT = [2, 3, 4, 5, 6, 7, 8], MS_OPT = [1, 2, 3];
+const SUB = ['₁','₂','₃','₄','₅','₆','₇','₈'];
+const FC = i => `var(--f${i + 1})`;
+const SVGNS = 'http://www.w3.org/2000/svg';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let N = 5, M = 2;
+const state = { S: 0.95, relu: true, seed: 1, x: [], sel: { t: 'out', i: 1 } };
+let model, run = 0, lastF = null, trained = false;
+
+// ---------- model: x' = act(Wᵀ W x + b), loss = Σ Iᵢ (xᵢ − x′ᵢ)² ----------
+function makeModel(seed, relu) {
+  let s = seed >>> 0;
+  const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const randn = () => Math.sqrt(-2 * Math.log(rand() + 1e-12)) * Math.cos(2 * Math.PI * rand());
+  const W = [...Array(M)].map(() => [...Array(N)].map(() => randn() * Math.sqrt(2 / (N + M))));
+  const b = Array(N).fill(0);
+  const I = [...Array(N)].map((_, i) => DECAY ** i);
+  const mW = W.map(r => r.map(() => 0)), vW = W.map(r => r.map(() => 0));
+  const mb = Array(N).fill(0), vb = Array(N).fill(0);
+  let t = 0;
+  function step(S, lr) {
+    const gW = W.map(r => r.map(() => 0)), gb = Array(N).fill(0);
+    const x = Array(N), h = Array(M), dz = Array(N);
+    let loss = 0;
+    for (let n = 0; n < BATCH; n++) {
+      for (let i = 0; i < N; i++) x[i] = rand() < S ? 0 : rand();
+      for (let j = 0; j < M; j++) { let a = 0; for (let i = 0; i < N; i++) a += W[j][i] * x[i]; h[j] = a; }
+      for (let i = 0; i < N; i++) {
+        let z = b[i]; for (let j = 0; j < M; j++) z += W[j][i] * h[j];
+        const e = (relu ? Math.max(0, z) : z) - x[i];
+        loss += I[i] * e * e;
+        dz[i] = relu && z <= 0 ? 0 : 2 * I[i] * e / BATCH;
+        gb[i] += dz[i];
+      }
+      for (let j = 0; j < M; j++) {
+        let dh = 0;
+        for (let i = 0; i < N; i++) { gW[j][i] += dz[i] * h[j]; dh += W[j][i] * dz[i]; }
+        for (let i = 0; i < N; i++) gW[j][i] += dh * x[i];
+      }
+    }
+    t++;
+    const c1 = 1 - 0.9 ** t, c2 = 1 - 0.999 ** t;
+    const adam = (p, m, v, g, k) => {
+      m[k] = 0.9 * m[k] + 0.1 * g; v[k] = 0.999 * v[k] + 0.001 * g * g;
+      p[k] -= lr * (m[k] / c1) / (Math.sqrt(v[k] / c2) + 1e-8);
+    };
+    for (let j = 0; j < M; j++) for (let i = 0; i < N; i++) adam(W[j], mW[j], vW[j], gW[j][i], i);
+    for (let i = 0; i < N; i++) adam(b, mb, vb, gb[i], i);
+    return loss / BATCH;
+  }
+  return { W, b, I, step, t: () => t, loss: NaN, ema: NaN };
+}
+
+function forward(x) {
+  const { W, b } = model;
+  const h = W.map(row => row.reduce((a, w, i) => a + w * x[i], 0));
+  const interf = [...Array(N)].map((_, i) => W.reduce((a, row, j) => a + row[i] * h[j], 0));
+  const pre = interf.map((v, i) => v + b[i]);
+  const out = pre.map(v => state.relu ? Math.max(0, v) : v);
+  return { h, interf, pre, out };
+}
+
+// ---------- helpers ----------
+const f = (v, d = 2) => (v < -0.5 * 10 ** -d ? '−' : '') + Math.abs(v).toFixed(d);
+const fs = (v, d = 2) => (v < 0 ? '− ' : '+ ') + Math.abs(v).toFixed(d);
+const el = (tag, attrs = {}, parent) => {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const col = i => model.W.map(r => r[i]);
+const norm = i => Math.hypot(...col(i));
+const plural = (k, w) => `${k} ${w}${k === 1 ? '' : 's'}`;
+
+// ---------- controls ----------
+function segment(id, opts, label, onPick) {
+  const host = document.getElementById(id);
+  opts.forEach(v => {
+    const btn = document.createElement('button');
+    btn.textContent = label(v);
+    btn.addEventListener('click', () => onPick(v));
+    host.appendChild(btn);
+  });
+  return host;
+}
+const nEl = segment('nsel', NS_OPT, String, n => { N = n; if (M >= N) M = N - 1; reshape(); train(); });
+const mEl = segment('msel', MS_OPT, String, m => { if (m < N) { M = m; reshape(); train(); } });
+const spEl = segment('sparsity', SPARS, String, S => { state.S = S; train(); });
+const actRelu = document.getElementById('act-relu'), actLin = document.getElementById('act-lin');
+actRelu.onclick = () => { state.relu = true; train(); };
+actLin.onclick = () => { state.relu = false; train(); };
+document.getElementById('retrain').onclick = () => { state.seed++; train(); };
+
+function syncControls() {
+  [...nEl.children].forEach((b, k) => b.setAttribute('aria-pressed', NS_OPT[k] === N));
+  [...mEl.children].forEach((b, k) => {
+    b.setAttribute('aria-pressed', MS_OPT[k] === M);
+    b.disabled = MS_OPT[k] >= N;
+  });
+  [...spEl.children].forEach((b, k) => b.setAttribute('aria-pressed', SPARS[k] === state.S));
+  actRelu.setAttribute('aria-pressed', state.relu); actLin.setAttribute('aria-pressed', !state.relu);
+  const p = Math.round((1 - state.S) * 100);
+  document.getElementById('sp-hint').textContent =
+    `Each feature on ${p}% of the time` + (p === 100 ? ' (dense)' : '');
+}
+
+// ---------- network diagram ----------
+const net = document.getElementById('net');
+const X_IN = 92, X_H = 280, X_OUT = 452;
+let R = 20;
+let N_, rowY, hidY;
+
+function buildNet() {
+  net.replaceChildren();
+  const gap = N <= 5 ? 72 : 300 / (N - 1); // keep the diagram the same height for more features
+  R = N <= 5 ? 20 : 17;
+  rowY = i => 72 + i * gap;
+  const mid = 72 + (N - 1) * gap / 2;
+  hidY = j => mid + (j - (M - 1) / 2) * 72;
+  const height = rowY(N - 1) + 56;
+  net.setAttribute('viewBox', `0 0 540 ${height}`);
+  net.setAttribute('aria-label', `Network diagram: ${N} inputs, ${M} hidden neurons, ${N} outputs`);
+  N_ = { eIn: [], eOut: [], inp: [], hid: [], out: [], bias: [] };
+
+  [['test input x', X_IN], ['hidden h = Wx', X_H], ['output x′', X_OUT]].forEach(([t, x]) => {
+    const tx = el('text', { x, y: 24, 'text-anchor': 'middle', 'font-size': 12 }, net);
+    tx.style.fill = 'var(--muted)'; tx.textContent = t;
+  });
+  const gEdges = el('g', {}, net), gNodes = el('g', {}, net);
+  for (let j = 0; j < M; j++) {
+    N_.eIn[j] = []; N_.eOut[j] = [];
+    for (let i = 0; i < N; i++) {
+      N_.eIn[j][i] = el('line', { x1: X_IN + R, y1: rowY(i), x2: X_H - R, y2: hidY(j), 'stroke-linecap': 'round' }, gEdges);
+      N_.eOut[j][i] = el('line', { x1: X_H + R, y1: hidY(j), x2: X_OUT - R, y2: rowY(i), 'stroke-linecap': 'round' }, gEdges);
+    }
+  }
+  const node = (cx, cy, color, type, i) => {
+    const g = el('g', { class: 'node', tabindex: 0, 'data-t': type, 'data-i': i }, gNodes);
+    const fill = el('circle', { cx, cy, r: R }, g);
+    fill.style.fill = color;
+    const ring = el('circle', { cx, cy, r: R, class: 'ring', 'stroke-width': 2.5 }, g);
+    ring.style.fill = 'none'; ring.style.stroke = color;
+    const txt = el('text', { x: cx, y: cy + 4.5, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 500 }, g);
+    return { g, fill, ring, txt };
+  };
+  for (let i = 0; i < N; i++) {
+    N_.inp[i] = node(X_IN, rowY(i), FC(i), 'in', i);
+    const lab = el('text', { x: X_IN - 36, y: rowY(i) - 2, 'text-anchor': 'end', 'font-size': 13 }, gNodes);
+    lab.style.fill = 'var(--ink)'; lab.textContent = 'x' + SUB[i];
+    const imp = el('text', { x: X_IN - 36, y: rowY(i) + 13, 'text-anchor': 'end', 'font-size': 10 }, gNodes);
+    imp.style.fill = 'var(--muted)'; imp.textContent = 'I ' + (DECAY ** i).toFixed(2);
+    N_.out[i] = node(X_OUT, rowY(i), FC(i), 'out', i);
+    N_.out[i].err = el('circle', { cx: X_OUT + 15, cy: rowY(i) - 15, r: 4.5 }, N_.out[i].g);
+    N_.out[i].err.style.fill = 'var(--neg)';
+    N_.bias[i] = el('text', { x: X_OUT + 32, y: rowY(i) + 4, 'font-size': 11 }, gNodes);
+    N_.bias[i].style.fill = 'var(--muted)';
+  }
+  for (let j = 0; j < M; j++) {
+    N_.hid[j] = node(X_H, hidY(j), 'var(--ink)', 'hid', j);
+    const lab = el('text', { x: X_H, y: hidY(j) - 28, 'text-anchor': 'middle', 'font-size': 12 }, gNodes);
+    lab.style.fill = 'var(--muted)'; lab.textContent = 'h' + SUB[j];
+  }
+  const legend = el('text', { x: X_OUT, y: height - 4, 'text-anchor': 'middle', 'font-size': 11 }, net);
+  legend.style.fill = 'var(--muted)';
+  legend.innerHTML = '<tspan style="fill:var(--neg)">●</tspan> output ≠ input';
+  const key = el('text', { x: X_IN - 60, y: height - 4, 'font-size': 11 }, net);
+  key.style.fill = 'var(--muted)';
+  key.innerHTML = '<tspan style="fill:var(--pos)" font-weight="600">━</tspan> positive weight  <tspan style="fill:var(--neg)" font-weight="600">━</tspan> negative';
+}
+
+net.addEventListener('pointerover', e => { const g = e.target.closest('.node'); if (g) select(g); });
+net.addEventListener('focusin', e => { const g = e.target.closest('.node'); if (g) select(g); });
+// clicking an input switches that feature on or off in the test input
+net.addEventListener('click', e => {
+  const g = e.target.closest('.node[data-t="in"]');
+  if (!g) return;
+  const i = +g.dataset.i;
+  state.x = state.x.map((v, k) => (k === i ? 1 - v : v));
+  select(g);
+});
+net.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('.node[data-t="in"]')) { e.preventDefault(); e.target.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
+});
+function select(g) {
+  state.sel = { t: g.dataset.t, i: +g.dataset.i };
+  render();
+}
+
+function renderNet(F) {
+  const { W, b } = model, { t, i: si } = state.sel;
+  const edge = (line, w, active, related) => {
+    line.style.stroke = w >= 0 ? 'var(--pos)' : 'var(--neg)';
+    line.setAttribute('stroke-width', (0.5 + 3.4 * Math.min(1.25, Math.abs(w))).toFixed(2));
+    let op = active ? 0.9 : 0.16;
+    if (related) op = Math.max(op, 0.55); else if (t !== 'in') op *= 0.6;
+    line.style.opacity = op;
+  };
+  for (let j = 0; j < M; j++) for (let i = 0; i < N; i++) {
+    edge(N_.eIn[j][i], W[j][i], state.x[i] !== 0, (t === 'in' && si === i) || (t === 'hid' && si === j));
+    edge(N_.eOut[j][i], W[j][i], Math.abs(F.h[j]) > 1e-3, t === 'out' && si === i);
+  }
+  const paint = (n, v, color, selected) => {
+    const a = Math.max(0, Math.min(1, Math.abs(v)));
+    n.fill.style.fillOpacity = a;
+    n.fill.style.fill = color;
+    n.txt.style.fill = a > 0.55 ? 'var(--bg)' : 'var(--ink)';
+    n.ring.setAttribute('stroke-width', selected ? 4 : 2.5);
+  };
+  for (let i = 0; i < N; i++) {
+    paint(N_.inp[i], state.x[i], FC(i), t === 'in' && si === i);
+    N_.inp[i].txt.textContent = state.x[i];
+    paint(N_.out[i], F.out[i], FC(i), t === 'out' && si === i);
+    N_.out[i].txt.textContent = f(F.out[i]);
+    N_.out[i].err.style.display = Math.abs(F.out[i] - state.x[i]) > 0.1 ? '' : 'none';
+    N_.bias[i].textContent = 'b ' + f(b[i]);
+  }
+  for (let j = 0; j < M; j++) {
+    const n = N_.hid[j];
+    n.fill.style.fill = F.h[j] >= 0 ? 'var(--pos)' : 'var(--neg)';
+    n.fill.style.fillOpacity = Math.min(1, Math.abs(F.h[j])) * 0.85;
+    n.ring.style.stroke = 'var(--ink)';
+    n.ring.setAttribute('stroke-width', t === 'hid' && si === j ? 4 : 2);
+    n.txt.style.fill = Math.abs(F.h[j]) > 0.6 ? '#fff' : 'var(--ink)';
+    n.txt.textContent = f(F.h[j]);
+  }
+}
+
+// ---------- computation readout ----------
+const eqEl = document.getElementById('eq'), calcTitle = document.getElementById('calc-title');
+function renderCalc(F) {
+  const { W, b, I } = model, { t, i } = state.sel;
+  const pad = '<span class="k">&nbsp;&nbsp;&nbsp;&nbsp;=</span> ';
+  if (t === 'hid') {
+    const j = i;
+    calcTitle.textContent = `Computation · hidden neuron h${SUB[j]}`;
+    const sym = [...Array(N)].map((_, k) => `W${SUB[j]}${SUB[k]}x${SUB[k]}`).join(' + ');
+    const num = [...Array(N)].map((_, k) =>
+      `<span class="${state.x[k] ? '' : 'z'}">(${f(W[j][k])})(${state.x[k]})</span>`).join(' + ');
+    eqEl.innerHTML = `h${SUB[j]} = ${sym}<br>${pad}${num}<br>${pad}<b>${f(F.h[j])}</b>`;
+    return;
+  }
+  if (t === 'in') {
+    calcTitle.textContent = `Computation · feature ${i + 1}`;
+    const L = norm(i);
+    eqEl.innerHTML = `x${SUB[i]} = <b>${state.x[i]}</b> <span class="k">· importance</span> I${SUB[i]} = ${I[i].toFixed(2)}<br>` +
+      `W<sub>:,${i + 1}</sub> = (${col(i).map(v => f(v)).join(', ')}) <span class="k">· length</span> <b>${L.toFixed(2)}</b>`;
+    return;
+  }
+  calcTitle.textContent = `Computation · output x′${SUB[i]}`;
+  const open = state.relu ? 'ReLU( ' : '', close = state.relu ? ' )' : '';
+  const sym = `x′${SUB[i]} = ${open}${W.map((_, j) => `W${SUB[j]}${SUB[i]}h${SUB[j]}`).join(' + ')} + b${SUB[i]}${close}`;
+  const num = `${open}${W.map((r, j) => `(${f(r[i])})(${f(F.h[j])})`).join(' + ')} ${fs(b[i])}${close}`;
+  const last = state.relu ? `ReLU(${f(F.pre[i])}) = <b>${f(F.out[i])}</b>` : `<b>${f(F.out[i])}</b>`;
+  eqEl.innerHTML = `${sym}<br>${pad}${num}<br>${pad}${last} <span class="k">&nbsp;&nbsp;target x${SUB[i]} = ${state.x[i]}</span>`;
+
+}
+
+// ---------- geometry ----------
+const geo = document.getElementById('geo');
+const regimeEl = document.getElementById('regime');
+const shapeEl = document.getElementById('shape');
+const SC = 105;
+let G, yaw = 0.55, pitch = 0.42, spin = true, drag = null;
+
+// hidden vector → screen point; 3-D uses an orthographic view rotated by yaw/pitch
+function proj(v) {
+  if (M === 1) return [v[0] * SC, 0, 0];
+  if (M === 2) return [v[0] * SC, -v[1] * SC, 0];
+  const s = SC * 0.85;
+  const x = v[0] * Math.cos(yaw) + v[2] * Math.sin(yaw);
+  const z = -v[0] * Math.sin(yaw) + v[2] * Math.cos(yaw);
+  const y = v[1] * Math.cos(pitch) - z * Math.sin(pitch);
+  const depth = v[1] * Math.sin(pitch) + z * Math.cos(pitch);
+  return [x * s, -y * s, depth];
+}
+// ---------- shape: which polytope do the feature arrows form? ----------
+const dot = (a, b) => a.reduce((s, v, k) => s + v * b[k], 0);
+const POLY = { 3: 'triangle', 4: 'square', 5: 'pentagon', 6: 'hexagon', 7: 'heptagon', 8: 'octagon' };
+const ADJ = { triangle: 'triangular', square: 'square', pentagon: 'pentagonal', hexagon: 'hexagonal', heptagon: 'heptagonal', octagon: 'octagonal' };
+function analyse() {
+  const rep = [...Array(N).keys()].filter(i => norm(i) > 0.5);
+  const u = rep.map(i => { const c = col(i), l = norm(i); return c.map(v => v / l); });
+  // features that aren't orthogonal interfere; each connected group lives in its own subspace
+  const seen = new Set(), comps = [];
+  rep.forEach((_, a) => {
+    if (seen.has(a)) return;
+    const stack = [a], g = []; seen.add(a);
+    while (stack.length) {
+      const p = stack.pop(); g.push(p);
+      rep.forEach((_, q) => { if (!seen.has(q) && Math.abs(dot(u[p], u[q])) > 0.2) { seen.add(q); stack.push(q); } });
+    }
+    comps.push(g);
+  });
+  const named = comps.map(g => {
+    const basis = [];
+    g.forEach(p => {
+      let r = u[p].slice();
+      basis.forEach(e => { const d = dot(r, e); r = r.map((v, k) => v - d * e[k]); });
+      const l = Math.hypot(...r); if (l > 0.35) basis.push(r.map(v => v / l));
+    });
+    const s = g.length, d = basis.length;
+    let name = null;
+    if (s === 1) name = 'dedicated';
+    else if (s === 2 && d === 1) name = 'antipodal pair';
+    else if (d === 2 && POLY[s]) {
+      const ang = g.map(p => Math.atan2(dot(u[p], basis[1]), dot(u[p], basis[0]))).sort((a, b) => a - b);
+      const gaps = ang.map((a, k) => (k ? a - ang[k - 1] : a + 2 * Math.PI - ang[s - 1]));
+      if (gaps.every(x => Math.abs(x - 2 * Math.PI / s) < 0.21)) name = POLY[s];
+    } else if (d === 3 && s === 4 && g.every((p, a) => g.every((q, b) => a === b || Math.abs(dot(u[p], u[q]) + 1 / 3) < 0.12))) name = 'tetrahedron';
+    return { s, d, name };
+  });
+  const sup = rep.length > M || named.some(c => c.s > c.d);
+  let names = named.map(c => c.name);
+  let shape;
+  if (!rep.length) shape = 'nothing stored';
+  else if (names.includes(null)) shape = 'irregular';
+  else {
+    const pairs = names.filter(n => n === 'antipodal pair').length;
+    if (pairs === 3 && names.length === 3) names = ['octahedron'];
+    else if (pairs === 2) names = ['square', ...names.filter(n => n !== 'antipodal pair')];
+    const ded = names.filter(n => n === 'dedicated').length;
+    if (ded === names.length) shape = ded === 1 ? 'single feature' : `${ded} orthogonal features`;
+    else if (names.length === 1) shape = names[0] === 'antipodal pair' ? 'antipodal pair (digon)' : names[0];
+    else if (names.length === 2 && ADJ[names[0]] && names[1] === 'dedicated') shape = `${ADJ[names[0]]} pyramid`;
+    else if (names.length === 2 && ADJ[names[0]] && names[1] === 'antipodal pair') shape = `${ADJ[names[0]]} bipyramid`;
+    else {
+      const parts = names.filter(n => n !== 'dedicated');
+      shape = parts.join(' + ') + ` + ${ded} orthogonal feature${ded === 1 ? '' : 's'}`;
+    }
+  }
+  return { rep, sup, shape };
+}
+// faces of the convex hull of the arrow tips (brute force; at most 8 points)
+function hullFaces(P) {
+  if (P.length < 2) return [];
+  const sub = (a, b) => a.map((v, k) => v - b[k]);
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const n = P.length, faces = new Map();
+  for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) for (let c = b + 1; c < n; c++) {
+    let nr = cross(sub(P[b], P[a]), sub(P[c], P[a]));
+    const l = Math.hypot(...nr); if (l < 1e-4) continue;
+    nr = nr.map(v => v / l);
+    const d = P.map(p => dot(sub(p, P[a]), nr));
+    if (!(d.every(v => v < 0.06) || d.every(v => v > -0.06))) continue;
+    const on = [...Array(n).keys()].filter(k => Math.abs(d[k]) < 0.06);
+    const key = on.join(',');
+    if (faces.has(key)) continue;
+    const C = on.reduce((s, k) => s.map((v, j) => v + P[k][j] / on.length), [0, 0, 0]);
+    let e1 = sub(P[on[0]], C); const l1 = Math.hypot(...e1) || 1; e1 = e1.map(v => v / l1);
+    const e2 = cross(nr, e1);
+    on.sort((p, q) => Math.atan2(dot(sub(P[p], C), e2), dot(sub(P[p], C), e1)) - Math.atan2(dot(sub(P[q], C), e2), dot(sub(P[q], C), e1)));
+    faces.set(key, on);
+  }
+  if (!faces.size) { // collinear: one segment between the extremes
+    const ord = [...P.keys()].sort((p, q) => P[p][0] + P[p][1] + P[p][2] - (P[q][0] + P[q][1] + P[q][2]));
+    return [[ord[0], ord[ord.length - 1]]];
+  }
+  return [...faces.values()];
+}
+
+const clampP = ([x, y, d]) => { const r = Math.hypot(x, y), m = 150; return r > m ? [x * m / r, y * m / r, d] : [x, y, d]; };
+
+function buildGeo() {
+  geo.replaceChildren();
+  G = { arrows: [], labels: [], axes: [] };
+  geo.style.touchAction = M === 3 ? 'none' : '';
+  geo.style.cursor = M === 3 ? 'grab' : '';
+  const muted = (e) => { e.style.fill = 'var(--muted)'; return e; };
+  const ax = () => { const l = el('line', { 'stroke-width': 1 }, geo); l.style.stroke = 'var(--line)'; return l; };
+  if (M === 1) {
+    const l = ax(); l.setAttribute('x1', -160); l.setAttribute('x2', 160); l.setAttribute('y1', 0); l.setAttribute('y2', 0);
+    [-1, 1].forEach(s => { const tk = ax(); tk.setAttribute('x1', s * SC); tk.setAttribute('x2', s * SC); tk.setAttribute('y1', -6); tk.setAttribute('y2', 6); });
+    muted(el('text', { x: 158, y: -8, 'text-anchor': 'end', 'font-size': 11 }, geo)).textContent = 'h₁';
+  } else {
+    const c = el('circle', { cx: 0, cy: 0, r: M === 3 ? SC * 0.85 : SC, 'stroke-dasharray': '3 4' }, geo);
+    c.style.fill = 'none'; c.style.stroke = 'var(--line)';
+    for (let j = 0; j < M; j++) {
+      G.axes[j] = { line: ax(), lab: muted(el('text', { 'text-anchor': 'middle', 'font-size': 11 }, geo)) };
+      G.axes[j].lab.textContent = 'h' + SUB[j];
+    }
+  }
+  G.hull = el('path', { 'stroke-width': 1.25, 'stroke-linejoin': 'round' }, geo);
+  G.hull.style.stroke = 'var(--muted)'; G.hull.style.fill = 'var(--ink)'; G.hull.style.fillOpacity = 0.05;
+  const defs = el('defs', {}, geo);
+  for (let i = 0; i < N; i++) {
+    const mk = el('marker', { id: 'ah' + i, viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse' }, defs);
+    el('path', { d: 'M0,0 L10,5 L0,10 z' }, mk).style.fill = FC(i);
+    G.arrows[i] = el('line', { x1: 0, y1: 0, 'stroke-width': 2.5, 'marker-end': `url(#ah${i})`, 'stroke-linecap': 'round' }, geo);
+    G.arrows[i].style.stroke = FC(i);
+    G.labels[i] = el('text', { 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 500 }, geo);
+    G.labels[i].style.fill = FC(i); G.labels[i].textContent = i + 1;
+  }
+}
+
+function renderGeo(F) {
+  if (M >= 2) {
+    for (let j = 0; j < M; j++) {
+      const e = Array(M).fill(0); e[j] = 1.45;
+      const [x2, y2] = proj(e), [x1, y1] = proj(e.map(v => -v));
+      const { line, lab } = G.axes[j];
+      line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+      const r = Math.hypot(x2, y2) || 1;
+      lab.setAttribute('x', x2 + 10 * x2 / r); lab.setAttribute('y', y2 + 10 * y2 / r + 4);
+    }
+  }
+  for (let i = 0; i < N; i++) {
+    const [x, y, d] = clampP(proj(col(i)));
+    const a = G.arrows[i];
+    a.setAttribute('x2', x); a.setAttribute('y2', y);
+    const shown = norm(i) >= 0.08;
+    const depthOp = M === 3 ? 0.55 + 0.45 * (d / Math.max(norm(i), 1e-6) + 1) / 2 : 1;
+    a.style.opacity = shown ? depthOp : 0;
+    const r = Math.hypot(x, y) || 1;
+    const [lx, ly] = M === 1 ? [x, -12 - 14 * (i % 2)] : [x + 14 * x / r, y + 14 * y / r + 4];
+    G.labels[i].setAttribute('x', lx); G.labels[i].setAttribute('y', ly);
+    G.labels[i].style.opacity = shown ? depthOp : 0;
+  }
+  const A = analyse(), k = A.rep.length;
+  const tips = A.rep.map(i => { const c = col(i); while (c.length < 3) c.push(0); return c; });
+  const pt = k => clampP(proj(col(A.rep[k]))).slice(0, 2).map(v => v.toFixed(1)).join(' ');
+  G.hull.setAttribute('d', trained && A.sup ? hullFaces(tips).map(f => 'M' + f.map(pt).join(' L') + (f.length > 2 ? ' Z' : '')).join(' ') : '');
+  shapeEl.textContent = trained ? A.shape : 'forming…';
+  const regime = A.sup
+    ? `<b>Superposition</b>`
+    : `<b class="none">No superposition</b>`;
+  if (regimeEl.innerHTML !== regime) regimeEl.innerHTML = regime;
+}
+
+geo.addEventListener('pointerdown', e => {
+  if (M !== 3) return;
+  drag = { x: e.clientX, y: e.clientY, yaw, pitch }; spin = false;
+  geo.setPointerCapture(e.pointerId); geo.style.cursor = 'grabbing';
+});
+geo.addEventListener('pointermove', e => {
+  if (!drag) return;
+  yaw = drag.yaw + (e.clientX - drag.x) * 0.01;
+  pitch = Math.max(-1.3, Math.min(1.3, drag.pitch + (e.clientY - drag.y) * 0.01));
+  if (lastF) renderGeo(lastF);
+});
+const endDrag = () => { if (drag) { drag = null; geo.style.cursor = 'grab'; } };
+geo.addEventListener('pointerup', endDrag);
+geo.addEventListener('pointercancel', endDrag);
+(function turn() {
+  if (M === 3 && spin && !reduce && lastF) { yaw += 0.004; renderGeo(lastF); }
+  requestAnimationFrame(turn);
+})();
+
+// ---------- W and WᵀW heatmaps ----------
+// ---------- training data: random examples from the distribution the model trains on ----------
+const tdata = document.getElementById('tdata');
+const EX = 40;
+function renderData() {
+  let s = (state.seed * 31 + Math.round(state.S * 1000) + N * 7) >>> 0;
+  const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const C = 9, G = 2, L = 16, CH = N <= 5 ? 11 : 6.5; // shorter rows for many features
+  tdata.replaceChildren();
+  tdata.setAttribute('viewBox', `0 0 ${L + EX * (C + G)} ${N * (CH + G) + 16}`);
+  for (let i = 0; i < N; i++) el('circle', { cx: 5, cy: i * (CH + G) + CH / 2, r: Math.min(4.5, CH / 2 - 0.5) }, tdata).style.fill = FC(i);
+  for (let e = 0; e < EX; e++) {
+    for (let i = 0; i < N; i++) {
+      const v = rand() < state.S ? 0 : rand();
+      const r = el('rect', { x: L + e * (C + G), y: i * (CH + G), width: C, height: CH, rx: 2.5 }, tdata);
+      r.style.fill = v ? FC(i) : 'var(--line)';
+      r.style.fillOpacity = v ? 0.2 + 0.8 * v : 0.45;
+    }
+  }
+  const cap = el('text', { x: L, y: N * (CH + G) + 13, 'font-size': 10.5 }, tdata);
+  cap.style.fill = 'var(--muted)';
+  const p = Math.round((1 - state.S) * 100);
+  document.getElementById('data-sub').textContent = p === 100
+    ? 'Each column is one input x. Every feature is always on.'
+    : `Each column is one input x. Each feature is on ${p}% of the time.`;
+  cap.textContent = `${EX} / ${BATCH.toLocaleString()} training samples per step shown`;
+}
+
+const wtw = document.getElementById('wtw');
+const GAP = 2, OX = 26, OY = 22;
+let H, CELL, OY2;
+function buildWtW() {
+  wtw.replaceChildren();
+  CELL = Math.min(36, Math.floor(200 / N) - GAP);
+  const fsz = CELL < 30 ? 8.5 : 10;
+  const bx = OX + N * (CELL + GAP) + 14;
+  const step = CELL + GAP;
+  OY2 = OY + M * step + 26;
+  wtw.setAttribute('viewBox', `0 0 ${bx + CELL + 4} ${OY2 + N * step + 4}`);
+  H = { w: [], wt: [], cells: [], txt: [], bc: [], bt: [] };
+  const label = (x, y, t, anchor = 'middle') => {
+    const e = el('text', { x, y, 'text-anchor': anchor, 'font-size': 11 }, wtw);
+    e.style.fill = 'var(--muted)'; e.textContent = t; return e;
+  };
+  const cell = (x, y) => [
+    el('rect', { x, y, width: CELL, height: CELL, rx: 3 }, wtw),
+    el('text', { x: x + CELL / 2, y: y + CELL / 2 + 3.5, 'text-anchor': 'middle', 'font-size': fsz }, wtw),
+  ];
+  for (let i = 0; i < N; i++) el('circle', { cx: OX + i * step + CELL / 2, cy: 9, r: 5 }, wtw).style.fill = FC(i);
+  // W: one row per hidden neuron, one column per feature
+  for (let j = 0; j < M; j++) {
+    label(OX - 6, OY + j * step + CELL / 2 + 4, 'h' + SUB[j], 'end');
+    H.w[j] = []; H.wt[j] = [];
+    for (let i = 0; i < N; i++) [H.w[j][i], H.wt[j][i]] = cell(OX + i * step, OY + j * step);
+  }
+  label(bx, OY + M * step / 2 + 2, 'W', 'start');
+  // WᵀW plus b
+  label(OX, OY2 - 8, 'WᵀW', 'start');
+  label(bx + CELL / 2, OY2 - 8, 'b');
+  for (let i = 0; i < N; i++) {
+    el('circle', { cx: 10, cy: OY2 + i * step + CELL / 2, r: 5 }, wtw).style.fill = FC(i);
+    H.cells[i] = []; H.txt[i] = [];
+    for (let k = 0; k < N; k++) [H.cells[i][k], H.txt[i][k]] = cell(OX + k * step, OY2 + i * step);
+    [H.bc[i], H.bt[i]] = cell(bx, OY2 + i * step);
+  }
+  const box = (w, h) => { const r = el('rect', { width: w, height: h, rx: 5, 'stroke-width': 1.5 }, wtw); r.style.fill = 'none'; r.style.stroke = 'var(--ink)'; return r; };
+  H.hl = box(N * step + 14 + CELL + 4, CELL + 4); H.hl.setAttribute('x', OX - 3);
+  H.wRow = box(N * step + 2, CELL + 4); H.wRow.setAttribute('x', OX - 3);
+  H.wCol = box(CELL + 4, M * step + 2); H.wCol.setAttribute('y', OY - 3);
+}
+
+function renderWtW() {
+  const { W, b } = model;
+  const shade = (rect, txt, v) => {
+    const a = Math.min(1, Math.abs(v) / 1.1);
+    rect.style.fill = v >= 0 ? 'var(--pos)' : 'var(--neg)';
+    rect.style.fillOpacity = Math.max(0.04, a);
+    txt.style.fill = a > 0.55 ? '#fff' : 'var(--ink)';
+    txt.textContent = f(v, 2).replace(/^(−?)0\./, '$1.');
+  };
+  for (let j = 0; j < M; j++) for (let i = 0; i < N; i++) shade(H.w[j][i], H.wt[j][i], W[j][i]);
+  for (let i = 0; i < N; i++) {
+    for (let k = 0; k < N; k++) shade(H.cells[i][k], H.txt[i][k], W.reduce((a, r) => a + r[i] * r[k], 0));
+    shade(H.bc[i], H.bt[i], b[i]);
+  }
+  const { t, i } = state.sel, step = CELL + GAP;
+  const feat = t === 'out' || t === 'in';
+  H.hl.style.display = feat ? '' : 'none';
+  H.hl.setAttribute('y', OY2 + i * step - 2);
+  H.wCol.style.display = feat ? '' : 'none';
+  H.wCol.setAttribute('x', OX + i * step - 2);
+  H.wRow.style.display = t === 'hid' ? '' : 'none';
+  H.wRow.setAttribute('y', OY + i * step - 2);
+}
+
+// ---------- loop ----------
+const statusEl = document.getElementById('status');
+function reshape() {
+  state.x = Array.from({ length: N }, (_, i) => +(i === 0)); // fixed input: feature 1 on
+  state.sel = { t: 'out', i: Math.min(1, N - 1) };
+  buildNet(); buildGeo(); buildWtW();
+}
+function render() {
+  const F = lastF = forward(state.x);
+  renderNet(F); renderCalc(F); renderGeo(F); renderWtW();
+}
+// Several random starts train side by side and the page shows the lowest-loss one,
+// because a single run can get stuck (e.g. two features on the same side of one neuron).
+const RUNS = 4;
+document.getElementById('train-hint').textContent =
+  `Adam · ${STEPS.toLocaleString()} steps × ${BATCH.toLocaleString()} fresh examples · best of ${RUNS} runs`;
+function train() {
+  syncControls();
+  renderData();
+  const runs = [...Array(RUNS)].map((_, r) => makeModel(state.seed * 101 + r * 7919, state.relu));
+  model = runs[0];
+  const id = ++run;
+  const perFrame = reduce ? STEPS : 40;
+  const tick = () => {
+    if (id !== run) return;
+    for (const m of runs) for (let k = 0; k < perFrame && m.t() < STEPS; k++) {
+      m.loss = m.step(state.S, m.t() < 3000 ? 0.01 : 0.003);
+      m.ema = isNaN(m.ema) ? m.loss : 0.98 * m.ema + 0.02 * m.loss;
+    }
+    model = runs.reduce((a, m) => (m.ema < a.ema ? m : a));
+    const done = trained = model.t() >= STEPS;
+    statusEl.textContent = done ? `trained · loss ${model.ema.toFixed(4)}` : `step ${model.t().toLocaleString()} / ${STEPS.toLocaleString()}`;
+    render();
+    if (!done) requestAnimationFrame(tick);
+  };
+  tick();
+}
+reshape();
+train();
+})();
+</script>
+</body>
+</html>
