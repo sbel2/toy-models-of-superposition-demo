@@ -207,12 +207,14 @@ function makeModel(seed, relu) {
   const mW = W.map(r => r.map(() => 0)), vW = W.map(r => r.map(() => 0));
   const mb = Array(N).fill(0), vb = Array(N).fill(0);
   let t = 0;
+  const sample = [];
   function step(S, lr) {
     const gW = W.map(r => r.map(() => 0)), gb = Array(N).fill(0);
     const x = Array(N), h = Array(M), dz = Array(N);
     let loss = 0;
     for (let n = 0; n < BATCH; n++) {
       for (let i = 0; i < N; i++) x[i] = rand() < S ? 0 : rand();
+      if (n < EX) sample[n] = x.slice(); // keep the start of this batch for the training-data view
       for (let j = 0; j < M; j++) { let a = 0; for (let i = 0; i < N; i++) a += W[j][i] * x[i]; h[j] = a; }
       for (let i = 0; i < N; i++) {
         let z = b[i]; for (let j = 0; j < M; j++) z += W[j][i] * h[j];
@@ -237,7 +239,7 @@ function makeModel(seed, relu) {
     for (let i = 0; i < N; i++) adam(b, mb, vb, gb[i], i);
     return loss / BATCH;
   }
-  return { W, b, I, step, t: () => t, loss: NaN, ema: NaN };
+  return { W, b, I, step, sample, t: () => t, loss: NaN, ema: NaN };
 }
 
 function forward(x) {
@@ -660,28 +662,32 @@ geo.addEventListener('pointercancel', endDrag);
 // ---------- training data: random examples from the distribution the model trains on ----------
 const tdata = document.getElementById('tdata');
 const EX = 40;
-function renderData() {
-  let s = (state.seed * 31 + Math.round(state.S * 1000) + N * 7) >>> 0;
-  const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+// the grid is built once per training run, then recoloured from the latest real batch every frame
+let DCELLS = [], dcap;
+function buildData() {
   const C = 9, G = 2, L = 16, CH = N <= 5 ? 11 : 6.5; // shorter rows for many features
   tdata.replaceChildren();
   tdata.setAttribute('viewBox', `0 0 ${L + EX * (C + G)} ${N * (CH + G) + 16}`);
   for (let i = 0; i < N; i++) el('circle', { cx: 5, cy: i * (CH + G) + CH / 2, r: Math.min(4.5, CH / 2 - 0.5) }, tdata).style.fill = FC(i);
-  for (let e = 0; e < EX; e++) {
-    for (let i = 0; i < N; i++) {
-      const v = rand() < state.S ? 0 : rand();
-      const r = el('rect', { x: L + e * (C + G), y: i * (CH + G), width: C, height: CH, rx: 2.5 }, tdata);
-      r.style.fill = v ? FC(i) : 'var(--line)';
-      r.style.fillOpacity = v ? 0.2 + 0.8 * v : 0.45;
-    }
-  }
-  const cap = el('text', { x: L, y: N * (CH + G) + 13, 'font-size': 10.5 }, tdata);
-  cap.style.fill = 'var(--muted)';
+  DCELLS = [...Array(EX)].map((_, e) => [...Array(N)].map((_, i) =>
+    el('rect', { x: L + e * (C + G), y: i * (CH + G), width: C, height: CH, rx: 2.5 }, tdata)));
+  dcap = el('text', { x: L, y: N * (CH + G) + 13, 'font-size': 10.5 }, tdata);
+  dcap.style.fill = 'var(--muted)';
   const p = Math.round((1 - state.S) * 100);
   document.getElementById('data-sub').textContent = p === 100
     ? 'Each column is one input x. Every feature is always on.'
     : `Each column is one input x. Each feature is on ${p}% of the time.`;
-  cap.textContent = `${EX} / ${BATCH.toLocaleString()} training samples per step shown`;
+}
+function renderData() {
+  const smp = model.sample;
+  DCELLS.forEach((colCells, e) => colCells.forEach((r, i) => {
+    const v = smp[e] ? smp[e][i] : 0;
+    r.style.fill = v ? FC(i) : 'var(--line)';
+    r.style.fillOpacity = v ? 0.2 + 0.8 * v : 0.45;
+  }));
+  dcap.textContent = smp.length
+    ? `${EX} of the ${BATCH.toLocaleString()} samples in step ${model.t().toLocaleString()}`
+    : '';
 }
 
 const wtw = document.getElementById('wtw');
@@ -760,7 +766,7 @@ function reshape() {
 }
 function render() {
   const F = lastF = forward(state.x);
-  renderNet(F); renderCalc(F); renderGeo(F); renderWtW();
+  renderNet(F); renderCalc(F); renderGeo(F); renderData(); renderWtW();
 }
 // Several random starts train side by side and the page shows the lowest-loss one,
 // because a single run can get stuck (e.g. two features on the same side of one neuron).
@@ -769,7 +775,7 @@ document.getElementById('train-hint').textContent =
   `Adam · ${STEPS.toLocaleString()} steps × ${BATCH.toLocaleString()} fresh examples · best of ${RUNS} runs`;
 function train() {
   syncControls();
-  renderData();
+  buildData();
   const runs = [...Array(RUNS)].map((_, r) => makeModel(state.seed * 101 + r * 7919, state.relu));
   model = runs[0];
   const id = ++run;
