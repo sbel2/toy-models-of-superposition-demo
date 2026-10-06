@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 :root {
+  color-scheme: light;
   --bg: #F5F6F8;
   --surface: #FFFFFF;
   --ink: #15181E;
@@ -21,20 +22,6 @@
   --serif: "Newsreader", Georgia, "Times New Roman", serif;
   --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #101216; --surface: #171A20; --ink: #E7E9EE; --muted: #9BA2AF; --faint: #5C6370; --line: #2A2F38;
-    --pos: #6E9EF0; --neg: #EE7A6D;
-    --f1: #A585F5; --f2: #3CC79E; --f3: #EDB13C; --f4: #F078AA; --f5: #4BBCDD; --f6: #A7C447; --f7: #C99A69; --f8: #94A6CC;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #101216; --surface: #171A20; --ink: #E7E9EE; --muted: #9BA2AF; --faint: #5C6370; --line: #2A2F38;
-  --pos: #6E9EF0; --neg: #EE7A6D;
-  --f1: #A585F5; --f2: #3CC79E; --f3: #EDB13C; --f4: #F078AA; --f5: #4BBCDD; --f6: #A7C447; --f7: #C99A69; --f8: #94A6CC;
 }
 * { box-sizing: border-box; }
 body {
